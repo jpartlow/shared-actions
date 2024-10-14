@@ -1,0 +1,66 @@
+name: Sync any source updates
+on:
+  workflow_call:
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repo
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: 3.1.2
+    - name: install deps
+      run: gem install octokit faraday-retry faraday-multipart
+    - name: Pull updates
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        WORKFLOW_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+      run:  |
+        ruby <<-EOF
+          require "octokit"
+          client = Octokit::Client.new
+          today  = DateTime.now.strftime('%Y-%m-%d')
+          repo   = %x(git config --get remote.origin.url).strip.split('/').last
+          origin   = "overlookinfra/#{repo}"
+          upstream = "puppetlabs/#{repo}"
+
+          default  = client.repo(upstream).default_branch
+          branches = client.branches(upstream)
+                            .map{|b| b.name }
+                            .select{|n| n =~ /^\d\.x/ }
+                            .unshift(default)
+
+          system('git', 'remote', 'add', 'source', "https://github.com/#{upstream}.git")
+          system('git', 'config', '--global', 'user.email', 'contact@overlookinfratech.com')
+          system('git', 'config', '--global', 'user.name', 'Overlook InfraTech')
+          system('git', 'remote', 'set-url', 'origin', "https://#{ENV['WORKFLOW_TOKEN']}@github.com/#{origin}.git")
+
+          puts "Origin: #{%x(git config --get remote.origin.url)}" 
+
+          system('git', 'fetch', 'source', '--tags')
+          
+          branches.each do |branch|
+            # There must be a better way, lol
+            system('git', 'checkout', branch) || system('git', 'checkout', '-b', branch)
+            
+            # Save a snapshot of today in case branches are deleted in the future
+            system('git', 'branch', "backup/#{today}/#{branch}")
+            system('git', 'push', '-u', 'origin', "backup/#{today}/#{branch}", '--force')
+
+            # Now integrate any updates, while deleting any workflow files so we don't accidentally run them.
+            system('git', 'pull', 'source', branch, '--rebase')
+            system('git', 'rm', '.github/workflows/*')
+            system('git', 'commit', '-m', 'Removing workflow files')
+
+            # force pushing allows the local commits to "float" at the top of the history
+            system('git', 'push', '-u', 'origin', branch, '--force') 
+          end
+          
+          system('git', 'push', 'origin', '--tags')
+        EOF
