@@ -1,0 +1,33 @@
+name: Sync any source updates
+on:
+  workflow_call:
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repo
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Back up and sync all updates
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run:  |
+        git remote add upstream $(git config --get remote.origin.url | sed 's|overlookinfra|puppetlabs|')
+        git fetch -p upstream
+
+        TODAY=$(date -I)
+        for BRANCH in $(git --no-pager branch -r --format='%(refname:short)' --list 'upstream*')
+        do
+          NAME=$(echo $BRANCH | sed 's|upstream/||')
+
+          git branch "backup/$TODAY/$NAME" $BRANCH
+          git push origin "backup/$TODAY/$NAME"
+
+          git fetch upstream $NAME:$NAME
+          git push origin $NAME
+        done
+
+        git push origin --tags
