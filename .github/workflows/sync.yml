@@ -14,7 +14,17 @@ jobs:
     - name: Back up and sync all updates
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        REPO_NAME: ${{ github.event.repository.name }}
       run:  |
+        MIRROR_DATE=$(date --date=$(gh repo view overlookinfra/${REPO_NAME} --json 'updatedAt' -t '{{ .updatedAt }}') '+%s')
+        UPSTREAM_DATE=$(date --date=$(gh repo view puppetlabs/${REPO_NAME} --json 'updatedAt' -t '{{ .updatedAt }}') '+%s')
+
+        echo "MIRROR_DATE: ${MIRROR_DATE}"
+        echo "UPSTREAM_DATE: ${UPSTREAM_DATE}"
+
+        # Only mirror if there are actually updates
+        if [[ $MIRROR_DATE -ge $UPSTREAM_DATE ]]; then exit 0; fi
+        
         git remote add upstream $(git config --get remote.origin.url | sed 's|overlookinfra|puppetlabs|')
         git fetch -p upstream
 
