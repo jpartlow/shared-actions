@@ -37,7 +37,7 @@ jobs:
           git push origin "backup/$TODAY/$NAME"
 
           git fetch upstream +refs/heads/$NAME:$NAME
-          git push origin $NAME
+          git push origin +refs/heads/$NAME
         done
 
         git push origin --tags
