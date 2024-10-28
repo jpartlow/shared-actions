@@ -36,7 +36,7 @@ jobs:
           git branch "backup/$TODAY/$NAME" $BRANCH
           git push origin "backup/$TODAY/$NAME"
 
-          git fetch upstream $NAME:$NAME
+          git fetch upstream +refs/heads/$NAME:$NAME
           git push origin $NAME
         done
 
