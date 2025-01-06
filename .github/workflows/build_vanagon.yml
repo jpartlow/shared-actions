@@ -14,6 +14,10 @@ on:
 
 env:
   VANAGON_LOCATION: 'https://github.com/openvoxproject/vanagon#main'
+  ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
+  BUCKET_NAME: ${{ secrets.S3_ARTIFACTS_BUCKET_NAME }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
 jobs:
   build:
@@ -75,10 +79,8 @@ jobs:
           rm -rf .bundle
           bundle install --path=.bundle
           rm -rf output
-          bundle exec build ${{ inputs.project_name }} ${{ matrix.os }} --engine docker
+          bundle exec rake vox:build['${{ inputs.project_name }}','${{ matrix.os }}']
 
-      - name: Save output
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.os }}-output
-          path: output/
+      - name: Upload output to S3
+        run: |
+          bundle exec rake vox:upload['${{ inputs.ref }}','${{ matrix.os }}']
