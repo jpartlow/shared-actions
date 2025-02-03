@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       platform_list:
-        description: 'A comma-separated list of platforms to build for. Do not include spaces. If not provided, will use the default list of platform supported by OpenVox.'
+        description: 'A comma-separated list of platforms to build for. Do not include spaces. If not provided, will use the default list of platforms supported by OpenVox.'
         required: false
         type: string
 
@@ -29,7 +29,8 @@ jobs:
   set-matrix:
     runs-on: ubuntu-24.04
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      arm_matrix: ${{ steps.set-matrix.outputs.arm_matrix }}
+      non_arm_matrix: ${{ steps.set-matrix.outputs.non_arm_matrix }}
     steps:
       - id: set-matrix
         run: |
@@ -64,20 +65,72 @@ jobs:
             'ubuntu-24.04-aarch64'
             'ubuntu-24.04-amd64'
           )
-          array=$(echo "${default_list[*]}" | tr ' ' ',')
           if [[ -n "${{ inputs.platform_list }}" ]]; then
-            array="${{ inputs.platform_list }}"
+            IFS=',' read -r -a platforms <<< "${{ inputs.platform_list }}"
+          else
+            platforms=("${default_list[@]}")
           fi
-          echo "matrix=[\"${array//,/\",\"}\"]" >> $GITHUB_OUTPUT
 
-  build:
+          arm_platforms=()
+          non_arm_platforms=()
+          for platform in "${platforms[@]}"; do
+            if [[ "$platform" == *-aarch64 || "platform" == *-arm64 ]]; then
+              arm_platforms+=("$platform")
+            else
+              non_arm_platforms+=("$platform")
+            fi
+          done
+          echo "arm_matrix=$(jq --monochrome-output --compact-output --null-input '$ARGS.positional' --args -- ${arm_platforms[@]})" >> "${GITHUB_OUTPUT}"
+          echo "non_arm_matrix=$(jq --monochrome-output --compact-output --null-input '$ARGS.positional' --args -- ${non_arm_platforms[@]})" >> "${GITHUB_OUTPUT}"
+
+  build_arm:
     needs: set-matrix
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 600
+    if: needs.set-matrix.outputs.arm_matrix != '[""]'
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON(needs.set-matrix.outputs.matrix) }}
+        platform: ${{ fromJSON(needs.set-matrix.outputs.arm_matrix) }}
+    steps:
+      - name: Checkout code at tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Install Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2.6'
+          bundler-cache: true
+
+      - name: Install qemu-user-static
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y qemu-user-static
+
+      - name: Update awscli
+        run: |
+          python -m pip install --upgrade awscli
+
+      - name: Run build script
+        run: |
+          rm -rf output
+          bundle exec rake vox:build['${{ inputs.project_name }}','${{ matrix.platform }}']
+
+      - name: Upload output to S3
+        run: |
+          bundle exec rake vox:upload['${{ inputs.ref }}','${{ matrix.platform }}']
+  
+  build_non_arm:
+    needs: set-matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 600
+    if: needs.set-matrix.outputs.non_arm_matrix != '[""]'
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJSON(needs.set-matrix.outputs.non_arm_matrix) }}
     steps:
       - name: Checkout code at tag
         uses: actions/checkout@v4
