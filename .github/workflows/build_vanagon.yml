@@ -17,11 +17,13 @@ on:
         type: string
 
 env:
-  VANAGON_LOCATION: 'https://github.com/openvoxproject/vanagon#main'
   ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
   BUCKET_NAME: ${{ secrets.S3_ARTIFACTS_BUCKET_NAME }}
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  # https://github.com/boto/boto3/issues/4398#issuecomment-2619946229
+  AWS_REQUEST_CHECKSUM_CALCULATION: "WHEN_REQUIRED"
+  AWS_RESPONSE_CHECKSUM_VALIDATION: "WHEN_REQUIRED"
 
 jobs:
   set-matrix:
