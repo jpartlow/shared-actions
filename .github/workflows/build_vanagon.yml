@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       arm_matrix: ${{ steps.set-matrix.outputs.arm_matrix }}
-      non_arm_matrix: ${{ steps.set-matrix.outputs.non_arm_matrix }}
+      x86_matrix: ${{ steps.set-matrix.outputs.x86_matrix }}
     steps:
       - id: set-matrix
         run: |
@@ -79,16 +79,16 @@ jobs:
           fi
 
           arm_platforms=()
-          non_arm_platforms=()
+          x86_platforms=()
           for platform in "${platforms[@]}"; do
             if [[ "$platform" == *-aarch64 || "platform" == *-arm64 ]]; then
               arm_platforms+=("$platform")
             else
-              non_arm_platforms+=("$platform")
+              x86_platforms+=("$platform")
             fi
           done
           echo "arm_matrix=$(jq --monochrome-output --compact-output --null-input '$ARGS.positional' --args -- ${arm_platforms[@]})" >> "${GITHUB_OUTPUT}"
-          echo "non_arm_matrix=$(jq --monochrome-output --compact-output --null-input '$ARGS.positional' --args -- ${non_arm_platforms[@]})" >> "${GITHUB_OUTPUT}"
+          echo "x86_matrix=$(jq --monochrome-output --compact-output --null-input '$ARGS.positional' --args -- ${x86_platforms[@]})" >> "${GITHUB_OUTPUT}"
 
   build_arm:
     needs: set-matrix
@@ -109,11 +109,12 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2.7'
-          bundler-cache: true
+
+      - name: Bundle install
+        run: bundle install --retry=3
 
       - name: Update awscli
-        run: |
-          python -m pip install --upgrade awscli
+        run: python -m pip install --upgrade awscli
 
       - name: Run build script
         run: |
@@ -121,18 +122,17 @@ jobs:
           bundle exec rake vox:build['${{ inputs.project_name }}','${{ matrix.platform }}']
 
       - name: Upload output to S3
-        run: |
-          bundle exec rake vox:upload['${{ inputs.ref }}','${{ matrix.platform }}']
+        run: bundle exec rake vox:upload['${{ inputs.ref }}','${{ matrix.platform }}']
   
-  build_non_arm:
+  build_x86:
     needs: set-matrix
     runs-on: ubuntu-24.04
     timeout-minutes: 600
-    if: needs.set-matrix.outputs.non_arm_matrix != '[""]'
+    if: needs.set-matrix.outputs.x86_matrix != '[""]'
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON(needs.set-matrix.outputs.non_arm_matrix) }}
+        platform: ${{ fromJSON(needs.set-matrix.outputs.x86_matrix) }}
     steps:
       - name: Checkout code at tag
         uses: actions/checkout@v4
@@ -142,17 +142,20 @@ jobs:
       - name: Install Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.2.6'
-          bundler-cache: true
+          ruby-version: '3.2.7'
 
-      - name: Install qemu-user-static
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y qemu-user-static
+      - name: Bundle install
+        run: bundle install --retry=3
+
+      # Re-enable this if we end up needing to build for a platform that
+      # is not x86_64 or arm, e.g. ppc64le.
+      #- name: Install qemu-user-static
+      #  run: |
+      #    sudo apt-get update -y
+      #    sudo apt-get install -y qemu-user-static
 
       - name: Update awscli
-        run: |
-          python -m pip install --upgrade awscli
+        run: python -m pip install --upgrade awscli
 
       - name: Run build script
         run: |
@@ -160,5 +163,4 @@ jobs:
           bundle exec rake vox:build['${{ inputs.project_name }}','${{ matrix.platform }}']
 
       - name: Upload output to S3
-        run: |
-          bundle exec rake vox:upload['${{ inputs.ref }}','${{ matrix.platform }}']
+        run: bundle exec rake vox:upload['${{ inputs.ref }}','${{ matrix.platform }}']
