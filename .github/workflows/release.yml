@@ -1,0 +1,107 @@
+on:
+  workflow_call:
+    inputs:
+      allowed_owner:
+        description: 'Only allow this owner'
+        required: true
+        type: string
+      version:
+        description: 'Version to be released.'
+        required: false
+        default: ''
+        type: string
+      base-branch:
+        description: 'The branch that will be used as the origin for the release branch.'
+        required: false
+        default: ''
+        type: string
+    secrets:
+      github_pat:
+        # Provide a fine-grained token with the following repository permissions:
+        # * Contents: Read and write
+        # * Metadata: Read-only (mandatory, default)
+        # * Pull requests: Read and write
+        description: 'The token used to interact with GitHub'
+        required: true
+      ssh_private_key:
+        description: 'The SSH private key used to sign commits and tags.'
+        required: true
+
+env:
+  GIT_AUTHOR_NAME: OpenVoxProjectBot
+  GIT_AUTHOR_EMAIL: 215568489+OpenVoxProjectBot@users.noreply.github.com
+  GIT_COMMITTER_NAME: OpenVoxProjectBot
+  GIT_COMMITTER_EMAIL: 215568489+OpenVoxProjectBot@users.noreply.github.com
+  SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+
+jobs:
+  release:
+    name: 'Release'
+    environment: release
+    runs-on: ubuntu-24.04
+    if: github.repository_owner == inputs.allowed_owner
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base-branch }}
+          token: ${{ secrets.github_pat }}
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: ${{ inputs.working-directory }}
+
+      - name: Add SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.ssh_private_key }}" > ~/.ssh/github_actions
+          chmod 600 ~/.ssh/github_actions
+          ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+          ssh-add ~/.ssh/github_actions
+      - name: Setup git
+        run: |
+          git config --global user.email "$GIT_AUTHOR_EMAIL"
+          git config --global user.name "$GIT_AUTHOR_NAME"
+          git config --global gpg.format ssh
+          git config --global user.signingkey ~/.ssh/github_actions
+          git config --global commit.gpgsign true
+          git config --global tag.gpgsign true
+
+      - name: Display bundle environment
+        run: |
+          bundle env
+
+      - name: Check that the code version match the version we release
+        run: |
+          bundle exec rake vox:version:bump:full[${{ inputs.version }}]
+          git diff --exit-code
+
+      - name: Do the release
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_user_name: ${{ env.GIT_COMMITTER_NAME }}
+          commit_user_email: ${{ env.GIT_COMMITTER_EMAIL }}
+          commit_author: '${{ env.GIT_AUTHOR_NAME }} <${{ env.GIT_AUTHOR_EMAIL }}>'
+          tagging_message: ${{ inputs.version }}
+          create_git_tag_only: true
+
+      - name: Compute the next RC version
+        id: future_version
+        run: |
+          ruby -e 'c = "${{ inputs.version }}".split("."); c[2].succ!; puts "version=#{c[0..2].join(".")}.rc0"' >> "$GITHUB_OUTPUT"
+
+      - name: Bump version to avoid confusion with code older that the tag
+        run: |
+          bundle exec rake vox:version:bump:full[${{ steps.future_version.outputs.version }}]
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_user_name: ${{ env.GIT_COMMITTER_NAME }}
+          commit_user_email: ${{ env.GIT_COMMITTER_EMAIL }}
+          commit_author: '${{ env.GIT_AUTHOR_NAME }} <${{ env.GIT_AUTHOR_EMAIL }}>'
+          commit_message: "Bump version to ${{ steps.future_version.outputs.version }}"
