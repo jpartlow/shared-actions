@@ -33,6 +33,7 @@ env:
   GIT_COMMITTER_NAME: OpenVoxProjectBot
   GIT_COMMITTER_EMAIL: 215568489+OpenVoxProjectBot@users.noreply.github.com
   SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+  BUNDLE_WITH: release
 
 jobs:
   release:
