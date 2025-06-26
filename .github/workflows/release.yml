@@ -93,7 +93,17 @@ jobs:
       - name: Compute the next RC version
         id: future_version
         run: |
-          ruby -e 'c = "${{ inputs.version }}".split("."); c[2].succ!; puts "version=#{c[0..2].join(".")}.rc0"' >> "$GITHUB_OUTPUT"
+          ruby << EOF >> "$GITHUB_OUTPUT"
+          c = "${{ inputs.version }}".split(".")
+          next_version = if c[-1] =~ /\Arc(\d+)\z/
+            c[-1] = "rc#{\$1.succ}"
+            c.join(".")
+          else
+            c[2].succ!
+            c[0..2].join(".") + "rc0"
+          end
+          puts "version=#{next_version}"
+          EOF
 
       - name: Bump version to avoid confusion with code older that the tag
         run: |
