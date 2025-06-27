@@ -95,12 +95,12 @@ jobs:
         run: |
           ruby << EOF >> "$GITHUB_OUTPUT"
           c = "${{ inputs.version }}".split(".")
-          next_version = if c[-1] =~ /\Arc(\d+)\z/
-            c[-1] = "rc#{\$1.succ}"
+          next_version = if c[-1] =~ /\A(\d+-rc)(\d+)\z/
+            c[-1] = "#{\$1}#{\$2.succ}"
             c.join(".")
           else
             c[2].succ!
-            c[0..2].join(".") + "rc0"
+            c[0..2].join(".") + "-rc0"
           end
           puts "version=#{next_version}"
           EOF
