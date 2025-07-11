@@ -45,6 +45,9 @@ jobs:
     runs-on: ubuntu-24.04
     if: github.repository_owner == inputs.allowed_owner
     steps:
+      - name: Make sure inputs.version looks like a valid Semantic Version
+        run: |
+          echo "${{ inputs.version }}" | grep -E '^[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+(-[[:alnum:].]+)?$'
 
       - name: Checkout repository
         uses: actions/checkout@v4
