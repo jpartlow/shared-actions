@@ -23,3 +23,31 @@ The two actions do things a little bit differently.
 - `/.github/workflows/sync.yml`
   - This one is far simpler. It relies on the user to have manually cloned each repo and set up the plumbing branch.
   - It basically just does a `git fetch` and a `git push` and creates the backup branches.
+
+### Beaker Acceptance action:
+
+The `/.github/workflows/beaker_acceptance.yml` is a reusable workflow
+for [Beaker](https://github.com/voxpupuli/beaker) acceptance of
+OpenVox projects.
+
+It:
+
+* checks out the given project-name@ref
+* runs the [nested_vms](https://github.com/jpartlow/nested_vms) action
+  to generate a set of test target vms using the
+  [kvm_automation_tooling](https://github.com/jpartlow/kvm_automation_tooling)
+  Bolt module.
+* installs the selected openvox components, either from collections
+  served from the apt and yum voxpupuli repositories, or from the
+  artifacts-url server for pre-release builds.
+* generates a Beaker hosts.yaml from the test target inventory
+* configures and executes Beaker with the given beaker-options,
+  acceptance-pre-suite and acceptance-tests.
+
+#### Usage
+
+Some example usages can be found in the openvox, openvox-agent and
+openvox-server repositories in the `.github/workflows` directory.
+
+See [beaker_acceptance.yml](.github/workflows/beaker_acceptance.yml)
+for parameter details.
