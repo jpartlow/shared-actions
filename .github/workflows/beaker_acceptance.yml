@@ -277,6 +277,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # Ensure that we checkout the project we want to test rather
+          # than the repository that this workflow is being called
+          # from.
+          repository: ${{ format('openvoxproject/{0}', inputs.project-name) }}
           ref: ${{ inputs.ref }}
           path: ${{ inputs.project-name }}
 
