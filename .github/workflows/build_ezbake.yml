@@ -15,6 +15,11 @@ on:
         description: 'A comma-separated list of rpm-based platforms to build for, excluding the architecture (e.g. el-9,amazon-2023). Do not include spaces. If not provided, will use the default list of platforms supported by OpenVox Server and DB.'
         required: false
         type: string
+      ezbake-ref:
+        description: |-
+          Branch/tag from ezbake that will be used for openvoxdb/server builds.
+        type: string
+        default: 'main'
 
 env:
   ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
@@ -26,6 +31,7 @@ env:
   AWS_RESPONSE_CHECKSUM_VALIDATION: "WHEN_REQUIRED"
   DEB_PLATFORMS: ${{ inputs.deb_platform_list || 'ubuntu-18.04,ubuntu-20.04,ubuntu-22.04,ubuntu-24.04,debian-11,debian-12' }}
   RPM_PLATFORMS: ${{ inputs.rpm_platform_list || 'el-7,el-8,el-9,el-10,sles-15,amazon-2023' }}
+  EZBAKE_BRANCH: ${{ inputs.ezbake-ref }}
 
 jobs:
   build:
