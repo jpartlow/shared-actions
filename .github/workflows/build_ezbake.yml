@@ -29,7 +29,7 @@ env:
   # https://github.com/boto/boto3/issues/4398#issuecomment-2619946229
   AWS_REQUEST_CHECKSUM_CALCULATION: "WHEN_REQUIRED"
   AWS_RESPONSE_CHECKSUM_VALIDATION: "WHEN_REQUIRED"
-  DEB_PLATFORMS: ${{ inputs.deb_platform_list || 'ubuntu-18.04,ubuntu-20.04,ubuntu-22.04,ubuntu-24.04,debian-11,debian-12' }}
+  DEB_PLATFORMS: ${{ inputs.deb_platform_list || 'ubuntu-20.04,ubuntu-22.04,ubuntu-24.04,debian-11,debian-12' }}
   RPM_PLATFORMS: ${{ inputs.rpm_platform_list || 'el-7,el-8,el-9,el-10,sles-15,amazon-2023' }}
   EZBAKE_BRANCH: ${{ inputs.ezbake-ref }}
 
