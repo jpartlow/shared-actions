@@ -15,7 +15,7 @@ on:
       fork:
         description: |-
           The github fork of the project-name Beaker test suite to run.
-        required: true
+        required: false
         type: string
         default: openvoxproject
       install-openvox:
