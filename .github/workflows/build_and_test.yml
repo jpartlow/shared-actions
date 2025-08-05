@@ -1,0 +1,72 @@
+name: Build an OpenVox project and then run Beaker acceptance tests against the packages
+
+on:
+  workflow_call:
+    inputs:
+      repository:
+        description: |-
+          The full owner/repository name of the OpenVox project to build and test. If not set, will default to the $GITHUB_REPOSITORY of the calling workflow.
+        required: false
+        type: string
+      ref:
+        description: |-
+          The Git reference (branch, tag, or commit SHA) to build and test. If not set, will default to the $GITHUB_REF of the calling workflow.
+        required: false
+        type: string
+      build-ref:
+        description: |-
+          Set this if you need build from a different ref than the one you are testing against. Probably only relevant for openvox to specify which ref of openvox-agent to build for testing.
+        required: false
+        type: string
+      build-fork:
+        description: |-
+          Only relevant if the build project is different from the test project and you need to build from a different fork of the build project.
+        required: false
+        type: string
+      
+jobs:
+  set-variables:
+    runs-on: ubuntu-24.04
+    outputs:
+      build-project: ${{ steps.set-variables.outputs.build_project }}
+      build-fork: ${{ steps.set-variables.outputs.build_fork }}
+      build_ref: ${{ steps.set-variables.outputs.build_ref }}
+      test-project: ${{ steps.set-variables.outputs.test_project }}
+      test-fork: ${{ steps.set-variables.outputs.test_fork }}
+      test_ref: ${{ steps.set-variables.outputs.test_ref }}
+      repository: ${{ steps.set-variables.outputs.repository }}
+    env:
+      REPOSITORY: ${{ inputs.github-repository || github.repository }}
+      REF: ${{ inputs.ref || github.ref }}
+      BUILD_REF: ${{ inputs.build-ref || github.ref }}
+      BUILD_FORK: ${{ inputs.build-fork || github.repository_owner }}
+    steps:
+      - id: set-variables
+        run: |-
+          set -e
+
+          echo "repository: ${REPOSITORY}"
+          echo "ref: ${REF}"
+
+          test_project=${REPOSITORY##*/}
+          echo "test_project: ${test_project}"
+          test_fork=${REPOSITORY%%/*}
+          echo "test_fork: ${test_fork}"
+
+          if [[ "${test_fork}" == "openvox" ]]; then
+            build_project='openvox-agent'
+          else
+            build_project=${test_project}
+          fi
+          echo "build_project: ${build_project}"
+          build_fork=${
+
+          echo "test_project=${test_project}" >> $GITHUB_OUTPUT
+          echo "owner=${owner}" >> $GITHUB_OUTPUT
+          echo "repository=${REPOSITORY}" >> $GITHUB_OUTPUT
+          echo "build_ref=${REF}" >> $GITHUB_OUTPUT
+
+  build:
+    needs: set-variables
+    runs-on: ubuntu-24.04
+
