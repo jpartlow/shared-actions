@@ -279,7 +279,7 @@ jobs:
                    inputs.project-name,
                    inputs.acceptance-working-dir) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # Ensure that we checkout the project we want to test rather
           # than the repository that this workflow is being called
