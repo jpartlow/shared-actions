@@ -66,6 +66,8 @@ jobs:
             'ubuntu-22.04-amd64'
             'ubuntu-24.04-aarch64'
             'ubuntu-24.04-amd64'
+            'ubuntu-25.04-amd64'
+            'ubuntu-25.04-aarch64'
           )
           if [[ -n "${{ inputs.platform_list }}" ]]; then
             IFS=',' read -r -a platforms <<< "${{ inputs.platform_list }}"
